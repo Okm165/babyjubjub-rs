@@ -1,8 +1,13 @@
+#![no_std]
+
 // BabyJubJub elliptic curve implementation in Rust.
 // For LICENSE check https://github.com/arnaucube/babyjubjub-rs
 
+use core::cmp::min;
+extern crate alloc;
+use alloc::{string::{String, ToString}, vec};
 use ff::*;
-
+use alloc::vec::Vec;
 use poseidon_rs::Poseidon;
 pub type Fr = poseidon_rs::Fr; // alias
 
@@ -13,8 +18,6 @@ use blake_hash::Digest; // compatible version with Blake used at circomlib
 
 #[cfg(feature = "aarch64")]
 extern crate blake; // compatible version with Blake used at circomlib
-
-use std::cmp::min;
 
 use num_bigint::{BigInt, RandBigInt, Sign, ToBigInt};
 use num_traits::One;
@@ -414,6 +417,7 @@ pub fn verify(pk: Point, sig: Signature, msg: BigInt) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use alloc::borrow::ToOwned;
     use ::hex;
     use rand::Rng;
 
@@ -719,7 +723,6 @@ mod tests {
 
         // test signature & verification
         let msg = BigInt::from_bytes_le(Sign::Plus, &hex::decode("00010203040506070809").unwrap());
-        println!("msg {:?}", msg.to_string());
         let sig = sk.sign(msg.clone()).unwrap();
         assert_eq!(
             sig.r_b8.x.to_string(),

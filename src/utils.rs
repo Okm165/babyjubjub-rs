@@ -1,6 +1,7 @@
 // BabyJubJub elliptic curve implementation in Rust.
 // For LICENSE check https://github.com/arnaucube/babyjubjub-rs
 
+use alloc::{string::{String, ToString}, vec::Vec};
 use num_bigint::{BigInt, ToBigInt};
 use num_traits::{One, Zero};
 
