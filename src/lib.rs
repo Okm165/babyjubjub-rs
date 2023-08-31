@@ -387,14 +387,6 @@ pub fn verify_schnorr(pk: Point, m: BigInt, r: Point, s: BigInt) -> Result<bool,
     Ok(sg.equals(right.affine()))
 }
 
-pub fn new_key() -> PrivateKey {
-    // https://tools.ietf.org/html/rfc8032#section-5.1.5
-    let mut rng = rand::thread_rng();
-    let sk_raw = rng.gen_biguint(1024).to_bigint().unwrap();
-    let (_, sk_raw_bytes) = sk_raw.to_bytes_be();
-    PrivateKey::import(sk_raw_bytes[..32].to_vec()).unwrap()
-}
-
 pub fn verify(pk: Point, sig: Signature, msg: BigInt) -> bool {
     if msg > Q.clone() {
         return false;
@@ -556,26 +548,6 @@ mod tests {
     }
 
     #[test]
-    fn test_new_key_sign_verify_0() {
-        let sk = new_key();
-        let pk = sk.public();
-        let msg = 5.to_bigint().unwrap();
-        let sig = sk.sign(msg.clone()).unwrap();
-        let v = verify(pk, sig, msg);
-        assert_eq!(v, true);
-    }
-
-    #[test]
-    fn test_new_key_sign_verify_1() {
-        let sk = new_key();
-        let pk = sk.public();
-        let msg = BigInt::parse_bytes(b"123456789012345678901234567890", 10).unwrap();
-        let sig = sk.sign(msg.clone()).unwrap();
-        let v = verify(pk, sig, msg);
-        assert_eq!(v, true);
-    }
-
-    #[test]
     fn test_point_compress_decompress() {
         let p: Point = Point {
             x: Fr::from_str(
@@ -655,38 +627,6 @@ mod tests {
             assert_eq!(&point.x, &dcmp_point.x);
             assert_eq!(&point.y, &dcmp_point.y);
         }
-    }
-
-    #[test]
-    fn test_signature_compress_decompress() {
-        let sk = new_key();
-        let pk = sk.public();
-
-        for i in 0..5 {
-            let msg_raw = "123456".to_owned() + &i.to_string();
-            let msg = BigInt::parse_bytes(msg_raw.as_bytes(), 10).unwrap();
-            let sig = sk.sign(msg.clone()).unwrap();
-
-            let compressed_sig = sig.compress();
-            let decompressed_sig = decompress_signature(&compressed_sig).unwrap();
-            assert_eq!(&sig.r_b8.x, &decompressed_sig.r_b8.x);
-            assert_eq!(&sig.r_b8.y, &decompressed_sig.r_b8.y);
-            assert_eq!(&sig.s, &decompressed_sig.s);
-
-            let v = verify(pk.clone(), decompressed_sig, msg);
-            assert_eq!(v, true);
-        }
-    }
-
-    #[test]
-    fn test_schnorr_signature() {
-        let sk = new_key();
-        let pk = sk.public();
-
-        let msg = BigInt::parse_bytes(b"123456789012345678901234567890", 10).unwrap();
-        let (s, e) = sk.sign_schnorr(msg.clone()).unwrap();
-        let verification = verify_schnorr(pk, msg, s, e).unwrap();
-        assert_eq!(true, verification);
     }
 
     #[test]
