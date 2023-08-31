@@ -19,7 +19,7 @@ use blake_hash::Digest; // compatible version with Blake used at circomlib
 #[cfg(feature = "aarch64")]
 extern crate blake; // compatible version with Blake used at circomlib
 
-use num_bigint::{BigInt, RandBigInt, Sign, ToBigInt};
+use num_bigint::{BigInt, Sign, ToBigInt};
 use num_traits::One;
 
 use generic_array::GenericArray;
@@ -343,48 +343,6 @@ impl PrivateKey {
 
         Ok(Signature { r_b8, s })
     }
-
-    #[allow(clippy::many_single_char_names)]
-    pub fn sign_schnorr(&self, m: BigInt) -> Result<(Point, BigInt), String> {
-        // random r
-        let mut rng = rand::thread_rng();
-        let k = rng.gen_biguint(1024).to_bigint().unwrap();
-
-        // r = k·G
-        let r = B8.mul_scalar(&k);
-
-        // h = H(x, r, m)
-        let pk = self.public();
-        let h = schnorr_hash(&pk, m, &r)?;
-
-        // s= k+x·h
-        let sk_scalar = self.scalar_key();
-        let s = k + &sk_scalar * &h;
-        Ok((r, s))
-    }
-}
-
-pub fn schnorr_hash(pk: &Point, msg: BigInt, c: &Point) -> Result<BigInt, String> {
-    if msg > Q.clone() {
-        return Err("msg outside the Finite Field".to_string());
-    }
-    let msg_fr: Fr = Fr::from_str(&msg.to_string()).unwrap();
-    let hm_input = vec![pk.x, pk.y, c.x, c.y, msg_fr];
-    let h = POSEIDON.hash(hm_input)?;
-    let h_b = BigInt::parse_bytes(to_hex(&h).as_bytes(), 16).unwrap();
-    Ok(h_b)
-}
-
-pub fn verify_schnorr(pk: Point, m: BigInt, r: Point, s: BigInt) -> Result<bool, String> {
-    // sG = s·G
-    let sg = B8.mul_scalar(&s);
-
-    // r + h · x
-    let h = schnorr_hash(&pk, m, &r)?;
-    let pk_h = pk.mul_scalar(&h);
-    let right = r.projective().add(&pk_h.projective());
-
-    Ok(sg.equals(right.affine()))
 }
 
 pub fn verify(pk: Point, sig: Signature, msg: BigInt) -> bool {
@@ -411,7 +369,6 @@ mod tests {
     use super::*;
     use alloc::borrow::ToOwned;
     use ::hex;
-    use rand::Rng;
 
     #[test]
     fn test_add_same_point() {
@@ -605,28 +562,6 @@ mod tests {
         let expected_px: Fr =
             Fr::from_str(&BigInt::from_bytes_le(Sign::Plus, &e_px_bytes).to_string()).unwrap();
         assert_eq!(&p.x, &expected_px);
-    }
-
-    #[test]
-    fn test_point_decompress_loop() {
-        for _ in 0..5 {
-            let random_bytes = rand::thread_rng().gen::<[u8; 32]>();
-            let sk_raw: BigInt = BigInt::from_bytes_le(Sign::Plus, &random_bytes[..]);
-            let (_, sk_raw_bytes) = sk_raw.to_bytes_be();
-            let mut h: Vec<u8> = blh(&sk_raw_bytes);
-
-            h[0] = h[0] & 0xF8;
-            h[31] = h[31] & 0x7F;
-            h[31] = h[31] | 0x40;
-
-            let sk = BigInt::from_bytes_le(Sign::Plus, &h[..]);
-            let point = B8.mul_scalar(&sk);
-            let cmp_point = point.compress();
-            let dcmp_point = decompress_point(cmp_point).unwrap();
-
-            assert_eq!(&point.x, &dcmp_point.x);
-            assert_eq!(&point.y, &dcmp_point.y);
-        }
     }
 
     #[test]
